@@ -1,0 +1,20 @@
+[project]
+name = "categoryrag"
+version = "0.1.0"
+description = "Category-scoped RAG with Flask admin API"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "flask>=3.1.3",
+    "sqlalchemy>=2.0.0",
+]
+
+[project.scripts]
+categoryrag = "categoryrag.app:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["categoryrag"]
