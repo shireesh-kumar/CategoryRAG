@@ -1,14 +1,32 @@
+from __future__ import annotations
+
+import os
+import tempfile
 from pathlib import Path
+
+from dotenv import load_dotenv
+
+load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "database"
-UPLOADS_DIR = DATA_DIR / "uploads"
-INDEXES_DIR = DATA_DIR / "indexes"
+TEMP_ROOT = Path(tempfile.gettempdir()) / "categoryrag"
+UPLOADS_DIR = TEMP_ROOT
 
+ALLOWED_EXTENSIONS = {".txt", ".pdf", ".docx"}
 INGEST_WORKERS = 2
+
+CHUNK_SIZE = 1000
+CHUNK_OVERLAP = 150
+
+EMBEDDING_MODEL = "text-embedding-3-small"
+EMBEDDING_DIM = 1536
+
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+QDRANT_URL = os.getenv("QDRANT_URL", "")
+QDRANT_API_KEY = os.getenv("QDRANT_API_KEY", "")
 
 
 def ensure_data_dirs() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
-    UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
-    INDEXES_DIR.mkdir(parents=True, exist_ok=True)
+    TEMP_ROOT.mkdir(parents=True, exist_ok=True)

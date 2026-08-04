@@ -1,9 +1,9 @@
-"""Background ingest: chunk → embed → store (stubbed for boilerplate)."""
-
 from __future__ import annotations
 
 import logging
+import shutil
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 
 from categoryrag.config import INGEST_WORKERS
 from categoryrag.models import DocumentStatus
@@ -24,10 +24,37 @@ class IngestWorker:
         self.registry = registry
         self._executor = ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="ingest")
 
-    def enqueue(self, document_id: str) -> None:
-        self._executor.submit(self._run, document_id)
+    def enqueue_batch(
+        self,
+        category_id: str,
+        document_ids: list[str],
+        batch_dir: Path,
+    ) -> None:
+        self._executor.submit(self._run_batch, category_id, document_ids, batch_dir)
 
-    def _run(self, document_id: str) -> None:
+    def _run_batch(
+        self,
+        category_id: str,
+        document_ids: list[str],
+        batch_dir: Path,
+    ) -> None:
+        try:
+            for document_id in document_ids:
+                self._ingest_one(category_id, document_id, batch_dir)
+        finally:
+            # TODO: upload batch_dir to S3 before removing temp files
+            if batch_dir.exists():
+                shutil.rmtree(batch_dir, ignore_errors=True)
+            parent = batch_dir.parent
+            if parent.exists() and parent.name.startswith("tmp_") and not any(parent.iterdir()):
+                parent.rmdir()
+
+    def _ingest_one(
+        self,
+        category_id: str,
+        document_id: str,
+        batch_dir: Path,
+    ) -> None:
         document = self.documents.get(document_id)
         if not document:
             logger.warning("Ingest skipped; document missing: %s", document_id)
@@ -35,17 +62,24 @@ class IngestWorker:
 
         self.documents.set_status(document_id, DocumentStatus.PROCESSING)
         try:
-            path = self.documents.path_for(document)
-            # TODO: replace with real chunk → embed → upsert
-            # For now we only register the category and mark success.
-            self.registry.ensure_category(document.category_id)
-            self.registry.ingest_document(
-                category_id=document.category_id,
+            file_path = self.documents.path_in_batch(document, batch_dir)
+            if not file_path.exists():
+                raise FileNotFoundError(f"Temp file missing: {file_path}")
+
+            chunk_count = self.registry.ingest_document(
+                category_id=category_id,
                 document_id=document.id,
-                file_path=path,
+                filename=document.filename,
+                stored_name=document.stored_name,
+                file_path=file_path,
             )
             self.documents.set_status(document_id, DocumentStatus.INDEXED)
-            logger.info("Indexed document %s in category %s", document_id, document.category_id)
+            logger.info(
+                "Indexed document %s (%s chunks) in category %s",
+                document_id,
+                chunk_count,
+                category_id,
+            )
         except Exception as exc:
             logger.exception("Ingest failed for %s", document_id)
             self.documents.set_status(document_id, DocumentStatus.FAILED, error=str(exc))

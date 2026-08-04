@@ -19,3 +19,4 @@ database/*.db
 # Env
 .env
 .env.*
+!.env.example

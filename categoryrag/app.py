@@ -7,6 +7,7 @@ from flask import Flask, jsonify
 
 from categoryrag.config import ensure_data_dirs
 from categoryrag.database.db import init_db
+from categoryrag.exceptions import NotFoundError, ValidationError
 from categoryrag.routes import api_bp
 from categoryrag.services.ingest import ingest_worker
 
@@ -21,13 +22,19 @@ def create_app() -> Flask:
     init_db()
     app = Flask(__name__)
     app.register_blueprint(api_bp)
-
-    @app.get("/health")
-    def health():
-        return jsonify({"status": "ok"})
-
+    _register_error_handlers(app)
     atexit.register(ingest_worker.shutdown)
     return app
+
+
+def _register_error_handlers(app: Flask) -> None:
+    @app.errorhandler(NotFoundError)
+    def handle_not_found(exc: NotFoundError):
+        return jsonify({"error": exc.error, "details": exc.details}), 404
+
+    @app.errorhandler(ValidationError)
+    def handle_validation(exc: ValidationError):
+        return jsonify({"error": exc.error, "details": exc.details}), 400
 
 
 def main() -> None:

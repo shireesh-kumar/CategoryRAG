@@ -1,48 +1,116 @@
 from __future__ import annotations
 
 import logging
+import uuid
 from pathlib import Path
 
-from categoryrag.config import INDEXES_DIR, ensure_data_dirs
+from qdrant_client import QdrantClient
+from qdrant_client.models import (
+    Distance,
+    FieldCondition,
+    Filter,
+    MatchValue,
+    PointStruct,
+    VectorParams,
+)
+
+from categoryrag.config import EMBEDDING_DIM, QDRANT_API_KEY, QDRANT_URL
+from categoryrag.services.chunking import chunk_text
+from categoryrag.services.embeddings import get_embedding_service
+from categoryrag.services.text_extractor import extract_text
 
 logger = logging.getLogger(__name__)
 
 
 class RetrieverRegistry:
     def __init__(self) -> None:
-        ensure_data_dirs()
-        self._ready: set[str] = set()
+        if not QDRANT_URL or not QDRANT_API_KEY:
+            raise RuntimeError("QDRANT_URL and QDRANT_API_KEY must be set")
+        self._client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
 
     def ensure_category(self, category_id: str) -> None:
-        index_dir = INDEXES_DIR / category_id
-        index_dir.mkdir(parents=True, exist_ok=True)
-        self._ready.add(category_id)
+        if self._client.collection_exists(category_id):
+            return
+        self._client.create_collection(
+            collection_name=category_id,
+            vectors_config=VectorParams(size=EMBEDDING_DIM, distance=Distance.COSINE),
+        )
 
-    def ingest_document(self, category_id: str, document_id: str, file_path: Path) -> None:
+    def ingest_document(
+        self,
+        *,
+        category_id: str,
+        document_id: str,
+        filename: str,
+        stored_name: str,
+        file_path: Path,
+    ) -> int:
         self.ensure_category(category_id)
-        if not file_path.exists():
-            raise FileNotFoundError(f"Missing upload: {file_path}")
-        marker = INDEXES_DIR / category_id / f"{document_id}.stub"
-        marker.write_text(f"source={file_path.name}\n", encoding="utf-8")
-        logger.info("Stub-indexed %s for category %s", document_id, category_id)
+        text = extract_text(file_path)
+        chunks = chunk_text(text)
+        if not chunks:
+            logger.warning("No text chunks for document %s", document_id)
+            return 0
+
+        vectors = get_embedding_service().embed_texts(chunks)
+        points = [
+            PointStruct(
+                id=str(uuid.uuid4()),
+                vector=vector,
+                payload={
+                    "category_id": category_id,
+                    "document_id": document_id,
+                    "filename": filename,
+                    "stored_name": stored_name,
+                    "chunk_index": index,
+                    "text": chunk,
+                },
+            )
+            for index, (chunk, vector) in enumerate(zip(chunks, vectors))
+        ]
+        self._client.upsert(collection_name=category_id, points=points)
+        return len(points)
 
     def delete_document(self, category_id: str, document_id: str) -> None:
-        marker = INDEXES_DIR / category_id / f"{document_id}.stub"
-        if marker.exists():
-            marker.unlink()
+        if not self._client.collection_exists(category_id):
+            return
+        self._client.delete(
+            collection_name=category_id,
+            points_selector=Filter(
+                must=[
+                    FieldCondition(
+                        key="document_id",
+                        match=MatchValue(value=document_id),
+                    )
+                ]
+            ),
+        )
 
     def delete_category(self, category_id: str) -> None:
-        index_dir = INDEXES_DIR / category_id
-        if index_dir.exists():
-            for path in index_dir.iterdir():
-                path.unlink()
-            index_dir.rmdir()
-        self._ready.discard(category_id)
+        if not self._client.collection_exists(category_id):
+            return
+        self._client.delete_collection(collection_name=category_id)
 
     def search(self, category_id: str, query: str, top_k: int = 5) -> list[dict]:
-        if category_id not in self._ready:
-            self.ensure_category(category_id)
-        logger.debug("Stub search category=%s query=%r top_k=%s", category_id, query, top_k)
-        return []
+        if not self._client.collection_exists(category_id):
+            return []
+        vector = get_embedding_service().embed_query(query)
+        results = self._client.query_points(
+            collection_name=category_id,
+            query=vector,
+            limit=top_k,
+            with_payload=True,
+        )
+        return [
+            {
+                "score": point.score,
+                "document_id": (point.payload or {}).get("document_id"),
+                "filename": (point.payload or {}).get("filename"),
+                "chunk_index": (point.payload or {}).get("chunk_index"),
+                "text": (point.payload or {}).get("text"),
+            }
+            for point in results.points
+        ]
+
 
 retriever_registry = RetrieverRegistry()
