@@ -25,6 +25,17 @@ def get_category(category_id: str):
     return jsonify(category_service.get_detail(category_id))
 
 
+@bp.post("/categories/<category_id>/search")
+def search_category(category_id: str):
+    payload = request.get_json(silent=True) or {}
+    results = category_service.search(
+        category_id,
+        query=payload.get("query", ""),
+        top_k=payload.get("top_k", 5),
+    )
+    return jsonify(results)
+
+
 @bp.delete("/categories/<category_id>")
 def delete_category(category_id: str):
     category_service.delete(category_id)

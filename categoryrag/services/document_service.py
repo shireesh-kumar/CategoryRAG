@@ -55,7 +55,7 @@ class DocumentService:
         self._validate_file_types(files)
 
         stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-        batch_dir = TEMP_ROOT / f"tmp_{stamp}" / category_id
+        batch_dir = TEMP_ROOT / f"tmp_{category_id}_{stamp}_{new_id()}"
         batch_dir.mkdir(parents=True, exist_ok=True)
 
         documents: list[Document] = []
@@ -163,10 +163,9 @@ class DocumentService:
     def delete_category_files(self, category_id: str) -> None:
         if not TEMP_ROOT.exists():
             return
-        for batch_dir in TEMP_ROOT.glob("tmp_*"):
-            category_dir = batch_dir / category_id
-            if category_dir.exists():
-                shutil.rmtree(category_dir, ignore_errors=True)
+        for batch_dir in TEMP_ROOT.glob(f"tmp_{category_id}_*"):
+            if batch_dir.is_dir():
+                shutil.rmtree(batch_dir, ignore_errors=True)
 
 
 document_service = DocumentService()

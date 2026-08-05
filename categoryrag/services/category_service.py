@@ -77,5 +77,34 @@ class CategoryService:
             session.delete(category)
             session.commit()
 
+    def search(self, category_id: str, query: str, top_k: int = 5) -> list[dict]:
+        if not self.get(category_id):
+            raise NotFoundError(
+                "not_found",
+                {"resource": "category", "id": category_id},
+            )
+        query = query.strip()
+        if not query:
+            raise ValidationError(
+                "validation_error",
+                {"message": "query is required"},
+            )
+        try:
+            top_k = int(top_k)
+        except (TypeError, ValueError):
+            raise ValidationError(
+                "validation_error",
+                {"message": "top_k must be an integer"},
+            )
+        if top_k < 1:
+            raise ValidationError(
+                "validation_error",
+                {"message": "top_k must be at least 1"},
+            )
+
+        from categoryrag.services.retriever_registry import retriever_registry
+
+        return retriever_registry.search(category_id, query, top_k=top_k)
+
 
 category_service = CategoryService()

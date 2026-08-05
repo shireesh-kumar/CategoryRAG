@@ -42,13 +42,8 @@ class IngestWorker:
             for document_id in document_ids:
                 self._ingest_one(category_id, document_id, batch_dir)
         finally:
-            # TODO: upload batch_dir to S3 before removing temp files
             if batch_dir.exists():
                 shutil.rmtree(batch_dir, ignore_errors=True)
-            parent = batch_dir.parent
-            if parent.exists() and parent.name.startswith("tmp_") and not any(parent.iterdir()):
-                parent.rmdir()
-
     def _ingest_one(
         self,
         category_id: str,
