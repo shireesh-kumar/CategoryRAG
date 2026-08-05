@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 import shutil
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -9,8 +8,7 @@ from categoryrag.config import INGEST_WORKERS
 from categoryrag.models import DocumentStatus
 from categoryrag.services.document_service import DocumentService, document_service
 from categoryrag.services.retriever_registry import RetrieverRegistry, retriever_registry
-
-logger = logging.getLogger(__name__)
+from categoryrag.services.s3_storage import S3Storage, get_s3_storage
 
 
 class IngestWorker:
@@ -44,6 +42,7 @@ class IngestWorker:
         finally:
             if batch_dir.exists():
                 shutil.rmtree(batch_dir, ignore_errors=True)
+
     def _ingest_one(
         self,
         category_id: str,
@@ -52,7 +51,6 @@ class IngestWorker:
     ) -> None:
         document = self.documents.get(document_id)
         if not document:
-            logger.warning("Ingest skipped; document missing: %s", document_id)
             return
 
         self.documents.set_status(document_id, DocumentStatus.PROCESSING)
@@ -61,7 +59,12 @@ class IngestWorker:
             if not file_path.exists():
                 raise FileNotFoundError(f"Temp file missing: {file_path}")
 
-            chunk_count = self.registry.ingest_document(
+            s3 = get_s3_storage()
+            s3_key = S3Storage.object_key(category_id, document.id, document.filename)
+            s3.upload_file(file_path, s3_key)
+            self.documents.set_s3_key(document_id, s3_key)
+
+            self.registry.ingest_document(
                 category_id=category_id,
                 document_id=document.id,
                 filename=document.filename,
@@ -69,14 +72,7 @@ class IngestWorker:
                 file_path=file_path,
             )
             self.documents.set_status(document_id, DocumentStatus.INDEXED)
-            logger.info(
-                "Indexed document %s (%s chunks) in category %s",
-                document_id,
-                chunk_count,
-                category_id,
-            )
         except Exception as exc:
-            logger.exception("Ingest failed for %s", document_id)
             self.documents.set_status(document_id, DocumentStatus.FAILED, error=str(exc))
 
     def shutdown(self, wait: bool = True) -> None:

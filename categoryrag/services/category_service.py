@@ -5,6 +5,7 @@ from sqlalchemy import select
 from categoryrag.database.db import get_session
 from categoryrag.exceptions import NotFoundError, ValidationError
 from categoryrag.models import Category, new_id, utc_now
+from categoryrag.services.s3_storage import S3Storage
 
 
 class CategoryService:
@@ -40,11 +41,13 @@ class CategoryService:
                 {"message": "Category name is required"},
             )
 
+        category_id = new_id()
         now = utc_now()
         category = Category(
-            id=new_id(),
+            id=category_id,
             name=name,
             description=description.strip(),
+            s3_prefix=S3Storage.category_prefix(category_id),
             created_at=now,
             updated_at=now,
         )
@@ -55,7 +58,8 @@ class CategoryService:
             return category
 
     def delete(self, category_id: str) -> None:
-        if not self.get(category_id):
+        category = self.get(category_id)
+        if not category:
             raise NotFoundError(
                 "not_found",
                 {"resource": "category", "id": category_id},
@@ -64,7 +68,10 @@ class CategoryService:
         from categoryrag.services.document_service import document_service
         from categoryrag.services.retriever_registry import retriever_registry
 
-        document_service.delete_category_files(category_id)
+        document_service.delete_category_storage(
+            category_id,
+            s3_prefix=category.s3_prefix or S3Storage.category_prefix(category_id),
+        )
         retriever_registry.delete_category(category_id)
 
         with get_session() as session:

@@ -13,11 +13,11 @@ def list_documents(category_id: str):
 
 @bp.post("/categories/<category_id>/documents")
 def upload_document(category_id: str):
-    documents = document_service.upload_many(
+    document_service.upload_many(
         category_id,
         request.files.getlist("file"),
     )
-    return jsonify([d.to_dict() for d in documents]), 202
+    return jsonify({"message": "Upload accepted"}), 202
 
 
 @bp.delete("/categories/<category_id>/documents/<document_id>")

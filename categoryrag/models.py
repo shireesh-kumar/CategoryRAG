@@ -32,6 +32,7 @@ class Category(Base):
     id: Mapped[str] = mapped_column(String(32), primary_key=True)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str] = mapped_column(String(500), default="")
+    s3_prefix: Mapped[str | None] = mapped_column(String(512), nullable=True)
     created_at: Mapped[str] = mapped_column(String(40), default=utc_now)
     updated_at: Mapped[str] = mapped_column(String(40), default=utc_now)
 
@@ -45,6 +46,7 @@ class Category(Base):
             "id": self.id,
             "name": self.name,
             "description": self.description,
+            "s3_prefix": self.s3_prefix,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
         }
@@ -68,6 +70,7 @@ class Document(Base):
         default=DocumentStatus.PENDING.value,
     )
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    s3_key: Mapped[str | None] = mapped_column(String(512), nullable=True)
     created_at: Mapped[str] = mapped_column(String(40), default=utc_now)
     updated_at: Mapped[str] = mapped_column(String(40), default=utc_now)
 
@@ -81,6 +84,7 @@ class Document(Base):
             "stored_name": self.stored_name,
             "status": self.status,
             "error": self.error,
+            "s3_key": self.s3_key,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
         }

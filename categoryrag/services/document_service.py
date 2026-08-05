@@ -13,6 +13,7 @@ from categoryrag.database.db import get_session
 from categoryrag.exceptions import NotFoundError, ValidationError
 from categoryrag.models import Document, DocumentStatus, new_id, utc_now
 from categoryrag.services.category_service import CategoryService, category_service
+from categoryrag.services.s3_storage import get_s3_storage
 
 
 class DocumentService:
@@ -38,7 +39,7 @@ class DocumentService:
         with get_session() as session:
             return session.get(Document, document_id)
 
-    def upload_many(self, category_id: str, files: list[FileStorage]) -> list[Document]:
+    def upload_many(self, category_id: str, files: list[FileStorage]) -> None:
         if not self.categories.get(category_id):
             raise NotFoundError(
                 "not_found",
@@ -69,7 +70,6 @@ class DocumentService:
             document_ids=[document.id for document in documents],
             batch_dir=batch_dir,
         )
-        return documents
 
     def _validate_file_types(self, files: list[FileStorage]) -> None:
         invalid: list[dict] = []
@@ -138,6 +138,17 @@ class DocumentService:
             session.refresh(document)
             return document
 
+    def set_s3_key(self, document_id: str, s3_key: str) -> Document | None:
+        with get_session() as session:
+            document = session.get(Document, document_id)
+            if not document:
+                return None
+            document.s3_key = s3_key
+            document.updated_at = utc_now()
+            session.commit()
+            session.refresh(document)
+            return document
+
     def delete(self, category_id: str, document_id: str) -> None:
         document = self.get(document_id)
         if not document or document.category_id != category_id:
@@ -147,6 +158,9 @@ class DocumentService:
             )
 
         from categoryrag.services.retriever_registry import retriever_registry
+
+        if document.s3_key:
+            get_s3_storage().delete_object(document.s3_key)
 
         retriever_registry.delete_document(category_id, document_id)
 
@@ -160,7 +174,9 @@ class DocumentService:
             session.delete(document)
             session.commit()
 
-    def delete_category_files(self, category_id: str) -> None:
+    def delete_category_storage(self, category_id: str, s3_prefix: str) -> None:
+        get_s3_storage().delete_prefix(s3_prefix)
+
         if not TEMP_ROOT.exists():
             return
         for batch_dir in TEMP_ROOT.glob(f"tmp_{category_id}_*"):

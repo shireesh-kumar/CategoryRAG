@@ -1,9 +1,7 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 from categoryrag.config import DATA_DIR, ensure_data_dirs
-from categoryrag import models 
-
 
 ensure_data_dirs()
 
@@ -28,7 +26,19 @@ class Base(DeclarativeBase):
 
 
 def init_db() -> None:
+    from categoryrag import models  # noqa: F401
+
     Base.metadata.create_all(bind=engine)
+    _ensure_column("documents", "s3_key", "VARCHAR(512)")
+    _ensure_column("categories", "s3_prefix", "VARCHAR(512)")
+
+
+def _ensure_column(table: str, column: str, coltype: str) -> None:
+    with engine.begin() as conn:
+        rows = conn.execute(text(f"PRAGMA table_info({table})")).fetchall()
+        columns = {row[1] for row in rows}
+        if column not in columns:
+            conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {coltype}"))
 
 
 def get_session():
