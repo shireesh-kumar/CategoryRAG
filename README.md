@@ -29,6 +29,27 @@ uv run categoryrag
 
 API: `http://127.0.0.1:5000`
 
+### MCP server (Claude)
+
+```bash
+uv run categoryrag-mcp
+```
+
+Tools: `list_categories`, `create_category`, `list_documents`, `search_category`.
+
+Example Claude Desktop / Claude Code MCP config:
+
+```json
+{
+  "mcpServers": {
+    "categoryrag": {
+      "command": "uv",
+      "args": ["run", "--directory", "D:/Projects/CategoryRAG", "categoryrag-mcp"]
+    }
+  }
+}
+```
+
 ## Ingest flow
 
 ```text
