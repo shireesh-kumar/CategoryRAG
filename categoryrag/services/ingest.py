@@ -5,7 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from categoryrag.config import INGEST_WORKERS
-from categoryrag.models import DocumentStatus
+from categoryrag.models import Document, DocumentStatus
 from categoryrag.services.document_service import DocumentService, document_service
 from categoryrag.services.retriever_registry import RetrieverRegistry, retriever_registry
 from categoryrag.services.s3_storage import S3Storage, get_s3_storage
@@ -25,20 +25,20 @@ class IngestWorker:
     def enqueue_batch(
         self,
         category_id: str,
-        document_ids: list[str],
+        documents: list[Document],
         batch_dir: Path,
     ) -> None:
-        self._executor.submit(self._run_batch, category_id, document_ids, batch_dir)
+        self._executor.submit(self._run_batch, category_id, documents, batch_dir)
 
     def _run_batch(
         self,
         category_id: str,
-        document_ids: list[str],
+        documents: list[Document],
         batch_dir: Path,
     ) -> None:
         try:
-            for document_id in document_ids:
-                self._ingest_one(category_id, document_id, batch_dir)
+            for document in documents:
+                self._ingest_one(category_id, document.id, batch_dir)
         finally:
             if batch_dir.exists():
                 shutil.rmtree(batch_dir, ignore_errors=True)
@@ -53,16 +53,26 @@ class IngestWorker:
         if not document:
             return
 
-        self.documents.set_status(document_id, DocumentStatus.PROCESSING)
+        already_failed = document.status == DocumentStatus.FAILED.value
+        if not already_failed:
+            self.documents.set_status(document_id, DocumentStatus.PROCESSING)
+
+        s3_key: str | None = None
+        embedded = False
+
         try:
             file_path = self.documents.path_in_batch(document, batch_dir)
             if not file_path.exists():
-                raise FileNotFoundError(f"Temp file missing: {file_path}")
+                raise FileNotFoundError(f"Internal error: Temp file missing: {file_path}")
 
-            s3 = get_s3_storage()
-            s3_key = S3Storage.object_key(category_id, document.id, document.filename)
-            s3.upload_file(file_path, s3_key)
+            key = S3Storage.object_key(category_id, document.id, document.filename)
+            get_s3_storage().upload_file(file_path, key)
+            s3_key = key
             self.documents.set_s3_key(document_id, s3_key)
+
+            # Unsupported / pre-failed docs: keep in S3, skip embedding.
+            if already_failed:
+                return
 
             self.registry.ingest_document(
                 category_id=category_id,
@@ -71,9 +81,27 @@ class IngestWorker:
                 stored_name=document.stored_name,
                 file_path=file_path,
             )
+            embedded = True
+
             self.documents.set_status(document_id, DocumentStatus.INDEXED)
         except Exception as exc:
-            self.documents.set_status(document_id, DocumentStatus.FAILED, error=str(exc))
+            if embedded:
+                self.registry.delete_document(category_id, document_id)
+            if s3_key and not already_failed:
+                try:
+                    get_s3_storage().delete_object(s3_key)
+                except Exception:
+                    pass
+                self.documents.set_s3_key(document_id, None)
+
+            if already_failed:
+                # Keep the original unsupported-type error; note S3 failure if upload never completed.
+                error = document.error or str(exc)
+                if s3_key is None and document.error:
+                    error = f"{document.error}; S3 upload failed: {exc}"
+                self.documents.set_status(document_id, DocumentStatus.FAILED, error=error)
+            else:
+                self.documents.set_status(document_id, DocumentStatus.FAILED, error=str(exc))
 
     def shutdown(self, wait: bool = True) -> None:
         self._executor.shutdown(wait=wait)

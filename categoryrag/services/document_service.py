@@ -53,7 +53,6 @@ class DocumentService:
                 {"message": "Expected multipart form field 'file'"},
             )
 
-        self._validate_file_types(files)
 
         stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
         batch_dir = TEMP_ROOT / f"tmp_{category_id}_{stamp}_{new_id()}"
@@ -67,29 +66,9 @@ class DocumentService:
 
         ingest_worker.enqueue_batch(
             category_id=category_id,
-            document_ids=[document.id for document in documents],
+            documents=documents,
             batch_dir=batch_dir,
         )
-
-    def _validate_file_types(self, files: list[FileStorage]) -> None:
-        invalid: list[dict] = []
-        for file in files:
-            original = secure_filename(file.filename or "") or ""
-            ext = Path(original).suffix.lower()
-            if ext not in ALLOWED_EXTENSIONS:
-                invalid.append({
-                    "filename": file.filename,
-                    "extension": ext or "(none)",
-                })
-        if invalid:
-            raise ValidationError(
-                "validation_error",
-                {
-                    "message": "Unsupported file type",
-                    "allowed": sorted(ALLOWED_EXTENSIONS),
-                    "invalid": invalid,
-                },
-            )
 
     def _save_upload(
         self,
@@ -100,8 +79,6 @@ class DocumentService:
         doc_id = new_id()
         original = secure_filename(file.filename) or "upload.bin"
         stored_name = f"{doc_id}_{original}"
-        file.save(batch_dir / stored_name)
-
         now = utc_now()
         document = Document(
             id=doc_id,
@@ -112,6 +89,13 @@ class DocumentService:
             created_at=now,
             updated_at=now,
         )
+
+        if Path(original).suffix.lower() not in ALLOWED_EXTENSIONS:
+            document.status = DocumentStatus.FAILED.value
+            document.error = f"Unsupported file type {Path(original).suffix.lower()}"
+        
+        file.save(batch_dir / stored_name)
+
         with get_session() as session:
             session.add(document)
             session.commit()
@@ -138,7 +122,7 @@ class DocumentService:
             session.refresh(document)
             return document
 
-    def set_s3_key(self, document_id: str, s3_key: str) -> Document | None:
+    def set_s3_key(self, document_id: str, s3_key: str | None) -> Document | None:
         with get_session() as session:
             document = session.get(Document, document_id)
             if not document:
