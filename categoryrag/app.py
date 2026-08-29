@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import atexit
 import logging
+from pathlib import Path
 
 from flask import Flask, jsonify
 
@@ -9,7 +10,10 @@ from categoryrag.config import ensure_data_dirs
 from categoryrag.database.db import init_db
 from categoryrag.exceptions import NotFoundError, ValidationError
 from categoryrag.routes import api_bp
+from categoryrag.routes.dashboard import bp as dashboard_bp
 from categoryrag.services.ingest import ingest_worker
+
+_PKG_DIR = Path(__file__).resolve().parent
 
 logging.basicConfig(
     level=logging.INFO,
@@ -20,7 +24,12 @@ logging.basicConfig(
 def create_app() -> Flask:
     ensure_data_dirs()
     init_db()
-    app = Flask(__name__)
+    app = Flask(
+        __name__,
+        template_folder=str(_PKG_DIR / "templates"),
+        static_folder=str(_PKG_DIR / "static"),
+    )
+    app.register_blueprint(dashboard_bp)
     app.register_blueprint(api_bp)
     _register_error_handlers(app)
     atexit.register(ingest_worker.shutdown)

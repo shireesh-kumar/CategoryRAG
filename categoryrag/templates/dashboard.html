@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard · CategoryRAG</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+</head>
+<body>
+  <header class="site-header">
+    <div class="brand">CategoryRAG</div>
+  </header>
+
+  <div class="dashboard">
+    <aside class="sidebar">
+      <section class="panel">
+        <h2>New category</h2>
+        <form id="create-category-form">
+          <label class="field">
+            <span>Name</span>
+            <input type="text" id="category-name" name="name" placeholder="e.g. Legal docs" required>
+          </label>
+          <label class="field">
+            <span>Description</span>
+            <textarea id="category-description" name="description" placeholder="Optional short description"></textarea>
+          </label>
+          <button type="submit" class="btn btn-primary btn-block">Create category</button>
+        </form>
+      </section>
+
+      <section class="panel">
+        <h2>Categories</h2>
+        <p class="panel-subtitle">Select a category to manage documents.</p>
+        <ul id="category-list" class="list">
+          <li class="empty-state" id="category-empty">No categories yet.</li>
+        </ul>
+      </section>
+    </aside>
+
+    <main class="main">
+      <section class="panel" id="documents-panel">
+        <h2 id="documents-title">Documents</h2>
+        <p class="panel-subtitle" id="documents-subtitle">Select a category to upload and view files.</p>
+
+        <div id="documents-content" class="hidden">
+          <form id="upload-form">
+            <div class="toolbar">
+              <input type="file" id="file-input" name="file" multiple>
+              <button type="submit" class="btn btn-primary">Upload files</button>
+            </div>
+          </form>
+
+          <ul id="document-list" class="list document-list">
+            <li class="empty-state" id="document-empty">No documents in this category.</li>
+          </ul>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Template rows for JS to clone later -->
+  <template id="category-item-template">
+    <li class="list-item" data-category-id="">
+      <div>
+        <p class="list-item-title"></p>
+        <p class="list-item-meta"></p>
+      </div>
+      <button type="button" class="btn btn-danger btn-delete-category">Delete</button>
+    </li>
+  </template>
+
+  <template id="document-item-template">
+    <li class="list-item" data-document-id="">
+      <div>
+        <p class="list-item-title"></p>
+        <p class="list-item-meta">
+          <span class="status"></span>
+          <span class="doc-error"></span>
+        </p>
+      </div>
+      <div class="doc-actions">
+        <button type="button" class="btn btn-danger btn-delete-document">Delete</button>
+      </div>
+    </li>
+  </template>
+
+  <template id="search-result-template">
+    <article class="result-card">
+      <h4></h4>
+      <p class="result-score"></p>
+      <p class="result-text"></p>
+    </article>
+  </template>
+</body>
+</html>
