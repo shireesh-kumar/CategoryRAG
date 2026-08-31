@@ -38,7 +38,7 @@ class S3Storage:
             if code in {"404", "NoSuchBucket", "NotFound"}:
                 self._client.create_bucket(Bucket=self._bucket)
             else:
-                raise
+                raise exc
 
     @staticmethod
     def object_key(category_id: str, document_id: str, filename: str) -> str:
