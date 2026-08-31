@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "categoryrag": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "D:\\Projects\\CategoryRAG",
+        "run",
+        "categoryrag-mcp"
+      ]
+    }
+  }
+}

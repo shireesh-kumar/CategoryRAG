@@ -3,8 +3,15 @@ from __future__ import annotations
 from pathlib import Path
 
 import boto3
+from botocore.exceptions import ClientError
 
-from categoryrag.config import AWS_REGION, S3_BUCKET
+from categoryrag.config import (
+    AWS_ACCESS_KEY_ID,
+    AWS_REGION,
+    AWS_SECRET_ACCESS_KEY,
+    S3_BUCKET,
+    S3_ENDPOINT_URL,
+)
 
 
 class S3Storage:
@@ -12,7 +19,26 @@ class S3Storage:
         if not S3_BUCKET:
             raise RuntimeError("S3_BUCKET is not set")
         self._bucket = S3_BUCKET
-        self._client = boto3.client("s3", region_name=AWS_REGION or None)
+        client_kwargs: dict = {
+            "region_name": AWS_REGION or None,
+            "aws_access_key_id": AWS_ACCESS_KEY_ID or None,
+            "aws_secret_access_key": AWS_SECRET_ACCESS_KEY or None,
+        }
+        if S3_ENDPOINT_URL:
+            client_kwargs["endpoint_url"] = S3_ENDPOINT_URL
+        self._client = boto3.client("s3", **client_kwargs)
+        if S3_ENDPOINT_URL:
+            self._ensure_bucket()
+
+    def _ensure_bucket(self) -> None:
+        try:
+            self._client.head_bucket(Bucket=self._bucket)
+        except ClientError as exc:
+            code = exc.response.get("Error", {}).get("Code", "")
+            if code in {"404", "NoSuchBucket", "NotFound"}:
+                self._client.create_bucket(Bucket=self._bucket)
+            else:
+                raise
 
     @staticmethod
     def object_key(category_id: str, document_id: str, filename: str) -> str:

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from google import genai
+from google.genai import types
 
-from categoryrag.config import EMBEDDING_MODEL, GEMINI_API_KEY
+from categoryrag.config import EMBEDDING_DIM, EMBEDDING_MODEL, GEMINI_API_KEY
 
 
 class EmbeddingService:
@@ -22,13 +23,25 @@ class EmbeddingService:
             response = self._client.models.embed_content(
                 model=self._model,
                 contents=batch,
+                config=types.EmbedContentConfig(
+                    task_type="RETRIEVAL_DOCUMENT",
+                    output_dimensionality=EMBEDDING_DIM,
+                ),
             )
             for embedding in response.embeddings:
                 vectors.append(list(embedding.values))
         return vectors
 
     def embed_query(self, query: str) -> list[float]:
-        return self.embed_texts([query])[0]
+        response = self._client.models.embed_content(
+            model=self._model,
+            contents=[query],
+            config=types.EmbedContentConfig(
+                task_type="RETRIEVAL_QUERY",
+                output_dimensionality=EMBEDDING_DIM,
+            ),
+        )
+        return list(response.embeddings[0].values)
 
 
 _embedding_service: EmbeddingService | None = None

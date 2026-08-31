@@ -21,7 +21,5 @@ database/*.db
 .env.*
 !.env.example
 
-# Terraform
-infra/.terraform/
-infra/*.tfstate
-infra/*.tfstate.*
+# Leftover local infra (Terraform removed)
+infra/

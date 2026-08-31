@@ -1,6 +1,6 @@
 # CategoryRAG
 
-Category-scoped document RAG with a Flask admin API, SQLite metadata, Gemini embeddings, Qdrant, and S3.
+Category-scoped document RAG with a Flask UI, PostgreSQL, MinIO, Qdrant, and Gemini embeddings.
 
 ## Setup
 
@@ -9,17 +9,26 @@ uv sync
 cp .env.example .env
 ```
 
-Fill in Gemini, Qdrant, and AWS/S3 values in `.env`.
+Set `GEMINI_API_KEY` in `.env`.
 
-### S3 bucket (Terraform)
+**Local:** `docker compose up -d` then `uv run categoryrag`. Docker endpoints are used automatically — you do not need Qdrant/S3/Postgres vars in `.env`.
+
+**Cloud:** Deploy with `ENV=production` and set service credentials as environment variables on the platform.
+
+## Start dependencies (Docker)
 
 ```bash
-cd infra
-terraform init
-terraform apply
+docker compose up -d
 ```
 
-Use outputs `bucket_name` and `aws_region` in `.env` as `S3_BUCKET` and `AWS_REGION`.
+This starts:
+
+| Service | URL |
+|---------|-----|
+| PostgreSQL | `localhost:5432` |
+| MinIO API | http://localhost:9000 |
+| MinIO console | http://localhost:9001 (`minioadmin` / `minioadmin`) |
+| Qdrant | http://localhost:6333 |
 
 ## Run
 
@@ -27,9 +36,17 @@ Use outputs `bucket_name` and `aws_region` in `.env` as `S3_BUCKET` and `AWS_REG
 uv run categoryrag
 ```
 
-API: `http://127.0.0.1:5000`
+Open: http://127.0.0.1:5000/dashboard
 
-### MCP server (Claude)
+## UI flow
+
+1. Create a category
+2. Select it in the sidebar
+3. Upload `.txt`, `.pdf`, or `.docx` files
+4. Watch status move `pending` → `processing` → `indexed` / `failed`
+5. Search indexed content in that category
+
+## MCP server (Claude)
 
 ```bash
 uv run categoryrag-mcp
@@ -37,25 +54,12 @@ uv run categoryrag-mcp
 
 Tools: `list_categories`, `create_category`, `list_documents`, `search_category`.
 
-Example Claude Desktop / Claude Code MCP config:
-
-```json
-{
-  "mcpServers": {
-    "categoryrag": {
-      "command": "uv",
-      "args": ["run", "--directory", "D:/Projects/CategoryRAG", "categoryrag-mcp"]
-    }
-  }
-}
-```
-
 ## Ingest flow
 
 ```text
 upload → temp → DB (pending)
       → background:
-           S3 upload + save s3_key
+           MinIO upload + save s3_key
            Qdrant embed/index
            status indexed | failed (+ error)
       → delete temp

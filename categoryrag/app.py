@@ -6,7 +6,7 @@ from pathlib import Path
 
 from flask import Flask, jsonify
 
-from categoryrag.config import ensure_data_dirs
+from categoryrag.config import IS_PRODUCTION, ensure_data_dirs
 from categoryrag.database.db import init_db
 from categoryrag.exceptions import NotFoundError, ValidationError
 from categoryrag.routes import api_bp
@@ -22,6 +22,9 @@ logging.basicConfig(
 
 
 def create_app() -> Flask:
+    logging.getLogger(__name__).info(
+        "Starting CategoryRAG (production=%s)", IS_PRODUCTION
+    )
     ensure_data_dirs()
     init_db()
     app = Flask(

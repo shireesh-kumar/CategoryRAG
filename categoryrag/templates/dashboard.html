@@ -11,6 +11,8 @@
     <div class="brand">CategoryRAG</div>
   </header>
 
+  <div id="message" class="message hidden"></div>
+
   <div class="dashboard">
     <aside class="sidebar">
       <section class="panel">
@@ -55,10 +57,24 @@
           </ul>
         </div>
       </section>
+
+      <section class="panel hidden" id="search-panel">
+        <h2>Search</h2>
+        <p class="panel-subtitle">Query indexed chunks in the selected category.</p>
+
+        <form id="search-form">
+          <label class="field">
+            <span>Query</span>
+            <input type="search" id="search-query" name="query" placeholder="Ask a question..." required>
+          </label>
+          <button type="submit" class="btn btn-primary">Search</button>
+        </form>
+
+        <div id="search-results" class="search-results search-results-spaced"></div>
+      </section>
     </main>
   </div>
 
-  <!-- Template rows for JS to clone later -->
   <template id="category-item-template">
     <li class="list-item" data-category-id="">
       <div>
@@ -91,5 +107,7 @@
       <p class="result-text"></p>
     </article>
   </template>
+
+  <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 </body>
 </html>

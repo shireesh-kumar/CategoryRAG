@@ -24,9 +24,12 @@ logger = logging.getLogger(__name__)
 
 class RetrieverRegistry:
     def __init__(self) -> None:
-        if not QDRANT_URL or not QDRANT_API_KEY:
-            raise RuntimeError("QDRANT_URL and QDRANT_API_KEY must be set")
-        self._client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
+        if not QDRANT_URL:
+            raise RuntimeError("QDRANT_URL must be set")
+        self._client = QdrantClient(
+            url=QDRANT_URL,
+            api_key=QDRANT_API_KEY or None,
+        )
 
     def ensure_category(self, category_id: str) -> None:
         if self._client.collection_exists(category_id):

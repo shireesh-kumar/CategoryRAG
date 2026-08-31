@@ -1,17 +1,15 @@
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
-from categoryrag.config import DATA_DIR, ensure_data_dirs
+from categoryrag.config import DATA_DIR, DATABASE_URL, ensure_data_dirs
 
 ensure_data_dirs()
 
-DATABASE_URL = f"sqlite:///{DATA_DIR / 'categoryrag.db'}"
+_engine_kwargs: dict = {"echo": False}
+if DATABASE_URL.startswith("sqlite"):
+    _engine_kwargs["connect_args"] = {"check_same_thread": False}
 
-engine = create_engine(
-    DATABASE_URL,
-    echo=False,
-    connect_args={"check_same_thread": False},
-)
+engine = create_engine(DATABASE_URL, **_engine_kwargs)
 
 SessionLocal = sessionmaker(
     bind=engine,
@@ -29,11 +27,12 @@ def init_db() -> None:
     from categoryrag import models  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
-    _ensure_column("documents", "s3_key", "VARCHAR(512)")
-    _ensure_column("categories", "s3_prefix", "VARCHAR(512)")
+    if DATABASE_URL.startswith("sqlite"):
+        _ensure_column_sqlite("documents", "s3_key", "VARCHAR(512)")
+        _ensure_column_sqlite("categories", "s3_prefix", "VARCHAR(512)")
 
 
-def _ensure_column(table: str, column: str, coltype: str) -> None:
+def _ensure_column_sqlite(table: str, column: str, coltype: str) -> None:
     with engine.begin() as conn:
         rows = conn.execute(text(f"PRAGMA table_info({table})")).fetchall()
         columns = {row[1] for row in rows}
