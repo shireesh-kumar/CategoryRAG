@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign in · CategoryRAG</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+</head>
+<body>
+  <header class="site-header">
+    <div class="brand">CategoryRAG</div>
+  </header>
+
+  <main class="auth-page">
+    <section class="panel auth-card">
+      <h1>Sign in</h1>
+      <p class="panel-subtitle">Access your categories and documents.</p>
+
+      <div id="message" class="message hidden"></div>
+
+      <form id="login-form" class="auth-form" method="post" action="#">
+        <label class="field">
+          <span>Email</span>
+          <input type="email" id="email" name="email" autocomplete="email" placeholder="you@example.com" required>
+        </label>
+        <label class="field">
+          <span>Password</span>
+          <input type="password" id="password" name="password" autocomplete="current-password" required>
+        </label>
+        <button type="submit" class="btn btn-primary btn-block">Sign in</button>
+      </form>
+
+      <p class="auth-footer">
+        No account yet?
+        <a href="{{ url_for('dashboard.register_page') }}">Create one</a>
+      </p>
+    </section>
+  </main>
+</body>
+</html>

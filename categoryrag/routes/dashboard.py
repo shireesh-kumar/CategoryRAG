@@ -11,3 +11,13 @@ def home():
 @bp.get("/dashboard")
 def get_dashboard():
     return render_template("dashboard.html")
+
+
+@bp.get("/login")
+def login_page():
+    return render_template("login.html")
+
+
+@bp.get("/register")
+def register_page():
+    return render_template("register.html")
