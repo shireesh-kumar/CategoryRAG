@@ -19,7 +19,14 @@ function clearMessage() {
 }
 
 async function apiJson(url, options = {}) {
-  const response = await fetch(url, options);
+  const response = await fetch(url, {
+    credentials: "same-origin",
+    ...options,
+  });
+  if (response.status === 401) {
+    window.location.href = "/login-page";
+    throw new Error("Login required");
+  }
   const body = await response.json().catch(() => ({}));
   if (!response.ok) {
     const msg =
@@ -128,8 +135,14 @@ async function selectCategory(id, name) {
 async function deleteCategory(id) {
   if (!confirm("Delete this category and all documents?")) return;
   try {
-    const response = await fetch(`/categories/${id}`, { method: "DELETE" });
-    if (!response.ok) throw new Error("Delete failed");
+    const response = await fetch(`/categories/${id}`, {
+      method: "DELETE",
+      credentials: "same-origin",
+    });
+    if (response.status === 401) {
+      window.location.href = "/login-page";
+      return;
+    }    if (!response.ok) throw new Error("Delete failed");
     if (selectedCategoryId === id) {
       selectedCategoryId = null;
       document.getElementById("documents-content").classList.add("hidden");
@@ -147,9 +160,12 @@ async function deleteDocument(id) {
   try {
     const response = await fetch(
       `/categories/${selectedCategoryId}/documents/${id}`,
-      { method: "DELETE" },
+      { method: "DELETE", credentials: "same-origin" },
     );
-    if (!response.ok) throw new Error("Delete failed");
+    if (response.status === 401) {
+      window.location.href = "/login-page";
+      return;
+    }    if (!response.ok) throw new Error("Delete failed");
     clearMessage();
     await loadDocuments();
   } catch (err) {
@@ -193,8 +209,12 @@ document.getElementById("upload-form").addEventListener("submit", async (event) 
     const response = await fetch(`/categories/${selectedCategoryId}/documents`, {
       method: "POST",
       body: formData,
+      credentials: "same-origin",
     });
-    if (!response.ok) {
+    if (response.status === 401) {
+      window.location.href = "/login-page";
+      return;
+    }    if (!response.ok) {
       const body = await response.json().catch(() => ({}));
       throw new Error(body.details?.message || body.error || "Upload failed");
     }

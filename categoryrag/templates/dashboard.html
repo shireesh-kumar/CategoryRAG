@@ -9,6 +9,9 @@
 <body>
   <header class="site-header">
     <div class="brand">CategoryRAG</div>
+    <div class="header-actions">
+      <a class="btn" href="{{ url_for('auth.logout') }}">Sign out</a>
+    </div>
   </header>
 
   <div id="message" class="message hidden"></div>

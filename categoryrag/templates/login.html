@@ -14,25 +14,13 @@
   <main class="auth-page">
     <section class="panel auth-card">
       <h1>Sign in</h1>
-      <p class="panel-subtitle">Access your categories and documents.</p>
+      <p class="panel-subtitle">Continue with Auth0 to access your categories.</p>
 
-      <div id="message" class="message hidden"></div>
-
-      <form id="login-form" class="auth-form" method="post" action="#">
-        <label class="field">
-          <span>Email</span>
-          <input type="email" id="email" name="email" autocomplete="email" placeholder="you@example.com" required>
-        </label>
-        <label class="field">
-          <span>Password</span>
-          <input type="password" id="password" name="password" autocomplete="current-password" required>
-        </label>
-        <button type="submit" class="btn btn-primary btn-block">Sign in</button>
-      </form>
+      <a class="btn btn-primary btn-block auth-cta" href="{{ url_for('auth.login') }}">Sign in with Auth0</a>
 
       <p class="auth-footer">
         No account yet?
-        <a href="{{ url_for('dashboard.register_page') }}">Create one</a>
+        <a href="{{ url_for('auth.register') }}">Create one</a>
       </p>
     </section>
   </main>

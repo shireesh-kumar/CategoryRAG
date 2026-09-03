@@ -24,6 +24,27 @@ body {
   background: var(--surface);
   border-bottom: 1px solid var(--border);
   padding: 1rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.header-actions a {
+  text-decoration: none;
+}
+
+.auth-cta {
+  display: inline-block;
+  text-align: center;
+  text-decoration: none;
+  margin-top: 0.5rem;
 }
 
 .brand {

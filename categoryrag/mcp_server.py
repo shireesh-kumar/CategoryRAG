@@ -4,20 +4,27 @@ from mcp.server.mcpserver import MCPServer
 
 from categoryrag.config import ensure_data_dirs
 from categoryrag.database.db import init_db
-from categoryrag.exceptions import AppError
-from categoryrag.services.category_service import category_service
-from categoryrag.services.document_service import document_service
 
 ensure_data_dirs()
 init_db()
 
 mcp = MCPServer("categoryrag")
 
+_MCP_AUTH_MSG = {
+    "error": "mcp_auth_required",
+    "details": {
+        "message": (
+            "Dashboard auth uses httpOnly cookies; MCP API-key auth is not wired yet. "
+            "Use the web dashboard for category operations for now."
+        )
+    },
+}
+
 
 @mcp.tool()
-def list_categories() -> list[dict]:
+def list_categories() -> dict:
     """List all document categories available for retrieval."""
-    return [c.to_dict() for c in category_service.list()]
+    return _MCP_AUTH_MSG
 
 
 @mcp.tool()
@@ -28,36 +35,21 @@ def create_category(name: str, description: str = "") -> dict:
         name: Category display name.
         description: Optional short description.
     """
-    try:
-        return category_service.create(name=name, description=description).to_dict()
-    except AppError as exc:
-        return {"error": exc.error, "details": exc.details}
+    return _MCP_AUTH_MSG
 
 
 @mcp.tool()
-def list_documents(category_id: str) -> list[dict] | dict:
+def list_documents(category_id: str) -> dict:
     """List documents in a category with indexing status.
 
     Args:
         category_id: Category id from list_categories.
     """
-    try:
-        documents = document_service.list(category_id)
-    except AppError as exc:
-        return {"error": exc.error, "details": exc.details}
-    return [
-        {
-            "id": document.id,
-            "filename": document.filename,
-            "status": document.status,
-            "error": document.error,
-        }
-        for document in documents
-    ]
+    return _MCP_AUTH_MSG
 
 
 @mcp.tool()
-def search_category(category_id: str, query: str, top_k: int = 5) -> list[dict] | dict:
+def search_category(category_id: str, query: str, top_k: int = 5) -> dict:
     """Search a category and return relevant document chunks.
 
     Args:
@@ -65,10 +57,7 @@ def search_category(category_id: str, query: str, top_k: int = 5) -> list[dict] 
         query: Natural language question or search text.
         top_k: Maximum number of chunks to return.
     """
-    try:
-        return category_service.search(category_id, query=query, top_k=top_k)
-    except AppError as exc:
-        return {"error": exc.error, "details": exc.details}
+    return _MCP_AUTH_MSG
 
 
 def main() -> None:

@@ -21,8 +21,8 @@ class DocumentService:
         self.categories = categories
         ensure_data_dirs()
 
-    def list(self, category_id: str) -> list[Document]:
-        if not self.categories.get(category_id):
+    def list(self, category_id: str, user_id: str) -> list[Document]:
+        if not self.categories.get(category_id, user_id=user_id):
             raise NotFoundError(
                 "not_found",
                 {"resource": "category", "id": category_id},
@@ -39,8 +39,8 @@ class DocumentService:
         with get_session() as session:
             return session.get(Document, document_id)
 
-    def upload_many(self, category_id: str, files: list[FileStorage]) -> None:
-        if not self.categories.get(category_id):
+    def upload_many(self, category_id: str, user_id: str, files: list[FileStorage]) -> None:
+        if not self.categories.get(category_id, user_id=user_id):
             raise NotFoundError(
                 "not_found",
                 {"resource": "category", "id": category_id},
@@ -133,7 +133,12 @@ class DocumentService:
             session.refresh(document)
             return document
 
-    def delete(self, category_id: str, document_id: str) -> None:
+    def delete(self, category_id: str, document_id: str, user_id: str) -> None:
+        if not self.categories.get(category_id, user_id=user_id):
+            raise NotFoundError(
+                "not_found",
+                {"resource": "category", "id": category_id},
+            )
         document = self.get(document_id)
         if not document or document.category_id != category_id:
             raise NotFoundError(

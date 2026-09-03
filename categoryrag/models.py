@@ -26,16 +26,46 @@ class DocumentStatus(StrEnum):
     FAILED = "failed"
 
 
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    auth0_sub: Mapped[str] = mapped_column(String(128), unique=True, nullable=False, index=True)
+    email: Mapped[str | None] = mapped_column(String(320), nullable=True)
+    name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    created_at: Mapped[str] = mapped_column(String(40), default=utc_now)
+    updated_at: Mapped[str] = mapped_column(String(40), default=utc_now)
+
+    categories: Mapped[list["Category"]] = relationship(back_populates="owner")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "auth0_sub": self.auth0_sub,
+            "email": self.email,
+            "name": self.name,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
+        }
+
+
 class Category(Base):
     __tablename__ = "categories"
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    user_id: Mapped[str] = mapped_column(
+        String(32),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str] = mapped_column(String(500), default="")
     s3_prefix: Mapped[str | None] = mapped_column(String(512), nullable=True)
     created_at: Mapped[str] = mapped_column(String(40), default=utc_now)
     updated_at: Mapped[str] = mapped_column(String(40), default=utc_now)
 
+    owner: Mapped[User] = relationship(back_populates="categories")
     documents: Mapped[list["Document"]] = relationship(
         back_populates="category",
         cascade="all, delete-orphan",
@@ -44,6 +74,7 @@ class Category(Base):
     def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
+            "user_id": self.user_id,
             "name": self.name,
             "description": self.description,
             "s3_prefix": self.s3_prefix,

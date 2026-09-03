@@ -76,6 +76,16 @@ S3_ENDPOINT_URL = _env("S3_ENDPOINT_URL")
 AWS_ACCESS_KEY_ID = _env("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = _env("AWS_SECRET_ACCESS_KEY")
 
+AUTH0_DOMAIN = _env("AUTH0_DOMAIN").rstrip("/")
+AUTH0_CLIENT_ID = _env("AUTH0_CLIENT_ID")
+AUTH0_CLIENT_SECRET = _env("AUTH0_CLIENT_SECRET")
+AUTH0_SECRET = _env("AUTH0_SECRET")  # signs OAuth state cookie
+APP_BASE_URL = _env("APP_BASE_URL").rstrip("/") or "http://localhost:5000"
+
+AUTH_COOKIE_NAME = "cr_id_token"
+AUTH_STATE_COOKIE = "cr_oauth_state"
+AUTH_COOKIE_MAX_AGE = 60 * 60 * 24 * 7  # 7 days
+
 
 def ensure_data_dirs() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)

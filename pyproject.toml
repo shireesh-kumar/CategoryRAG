@@ -5,7 +5,7 @@ description = "Category-scoped RAG with Flask admin API"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "flask>=3.1.3",
+    "flask[async]>=3.1.3",
     "sqlalchemy>=2.0.0",
     "python-dotenv>=1.0.0",
     "google-genai>=1.0.0",
@@ -15,6 +15,12 @@ dependencies = [
     "boto3>=1.34.0",
     "psycopg[binary]>=3.1.0",
     "mcp>=2.0.0",
+    "auth0-server-python>=1.0.0b1,<2",
+    "markupsafe>=3.0.3",
+    "pyjwt[crypto]>=2.13.0",
+    "requests>=2.34.2",
+    "authlib>=1.8.0",
+    "cryptography>=50.0.0",
 ]
 
 [project.scripts]

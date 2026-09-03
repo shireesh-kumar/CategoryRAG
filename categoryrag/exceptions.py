@@ -16,3 +16,7 @@ class NotFoundError(AppError):
 
 class ValidationError(AppError):
     pass
+
+
+class UnauthorizedError(AppError):
+    pass

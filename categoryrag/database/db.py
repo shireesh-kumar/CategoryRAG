@@ -1,4 +1,6 @@
-from sqlalchemy import create_engine
+from __future__ import annotations
+
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 from categoryrag.config import DATABASE_URL, ensure_data_dirs

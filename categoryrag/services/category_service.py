@@ -9,16 +9,26 @@ from categoryrag.services.s3_storage import S3Storage
 
 
 class CategoryService:
-    def list(self) -> list[Category]:
+    def list(self, user_id: str) -> list[Category]:
         with get_session() as session:
-            return list(session.scalars(select(Category).order_by(Category.created_at)).all())
+            stmt = (
+                select(Category)
+                .where(Category.user_id == user_id)
+                .order_by(Category.created_at)
+            )
+            return list(session.scalars(stmt).all())
 
-    def get(self, category_id: str) -> Category | None:
+    def get(self, category_id: str, user_id: str | None = None) -> Category | None:
         with get_session() as session:
-            return session.get(Category, category_id)
+            category = session.get(Category, category_id)
+            if not category:
+                return None
+            if user_id is not None and category.user_id != user_id:
+                return None
+            return category
 
-    def get_detail(self, category_id: str) -> dict:
-        category = self.get(category_id)
+    def get_detail(self, category_id: str, user_id: str) -> dict:
+        category = self.get(category_id, user_id=user_id)
         if not category:
             raise NotFoundError(
                 "not_found",
@@ -27,13 +37,13 @@ class CategoryService:
 
         from categoryrag.services.document_service import document_service
 
-        documents = document_service.list(category_id)
+        documents = document_service.list(category_id, user_id=user_id)
         return {
             "category": category.to_dict(),
             "documents": [d.to_dict() for d in documents],
         }
 
-    def create(self, name: str, description: str = "") -> Category:
+    def create(self, user_id: str, name: str, description: str = "") -> Category:
         name = name.strip()
         if not name:
             raise ValidationError(
@@ -45,6 +55,7 @@ class CategoryService:
         now = utc_now()
         category = Category(
             id=category_id,
+            user_id=user_id,
             name=name,
             description=description.strip(),
             s3_prefix=S3Storage.category_prefix(category_id),
@@ -57,8 +68,8 @@ class CategoryService:
             session.refresh(category)
             return category
 
-    def delete(self, category_id: str) -> None:
-        category = self.get(category_id)
+    def delete(self, category_id: str, user_id: str) -> None:
+        category = self.get(category_id, user_id=user_id)
         if not category:
             raise NotFoundError(
                 "not_found",
@@ -76,7 +87,7 @@ class CategoryService:
 
         with get_session() as session:
             category = session.get(Category, category_id)
-            if not category:
+            if not category or category.user_id != user_id:
                 raise NotFoundError(
                     "not_found",
                     {"resource": "category", "id": category_id},
@@ -84,8 +95,8 @@ class CategoryService:
             session.delete(category)
             session.commit()
 
-    def search(self, category_id: str, query: str, top_k: int = 5) -> list[dict]:
-        if not self.get(category_id):
+    def search(self, category_id: str, user_id: str, query: str, top_k: int = 5) -> list[dict]:
+        if not self.get(category_id, user_id=user_id):
             raise NotFoundError(
                 "not_found",
                 {"resource": "category", "id": category_id},
