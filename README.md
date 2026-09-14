@@ -14,7 +14,7 @@ Set `GEMINI_API_KEY` and Auth0 vars in `.env` (see `.env.example`).
 **Local:** `docker compose up -d` then `uv run categoryrag`.  
 Open **http://localhost:5000** (must match `APP_BASE_URL` and Auth0 callback URLs — not `127.0.0.1`).
 
-**Auth:** Auth0 Universal Login → `/callback` → httpOnly `cr_id_token` cookie (`SameSite=Strict`). Categories are scoped per user.
+**Auth:** Auth0 Universal Login → `/callback` → httpOnly `cr_id_token` cookie (`SameSite=Strict`). Categories are scoped per user. MCP uses the same Auth0 login via Cursor OAuth (browser → Cursor stores token).
 
 **Cloud:** Deploy with `ENV=production` and set service credentials as environment variables on the platform.
 
@@ -51,13 +51,22 @@ Open: http://localhost:5000/login-page
 6. Search indexed content in that category
 7. Sign out when done
 
-## MCP server (Claude)
+## MCP server (Cursor)
+
+HTTP MCP with Auth0 login (same pattern as Tavily remote MCP). Cursor opens the browser, you sign in, Cursor stores the token — no JWT paste.
+
+1. Reuse your existing Auth0 Regular Web App. Add this to **Allowed Callback URLs**:
+   `http://127.0.0.1:8000/auth/callback`
+2. Start MCP: `uv run categoryrag-mcp` (listens on `http://127.0.0.1:8000/mcp`)
+3. In Cursor Settings → MCP, use URL `http://127.0.0.1:8000/mcp` (see `.cursor/mcp.json`)
+4. Click **Needs authentication** / run `mcp_auth` → Auth0 login → done
+
+Tools: `list_categories`, `create_category`, `list_documents`, `search_category` (scoped to the signed-in user).
 
 ```bash
 uv run categoryrag-mcp
 ```
 
-MCP category tools are temporarily gated until API-key auth is added (browser cookies do not apply to MCP).
 ## Ingest flow
 
 ```text

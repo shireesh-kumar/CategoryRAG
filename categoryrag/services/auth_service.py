@@ -40,14 +40,19 @@ def callback_url() -> str:
     return f"{APP_BASE_URL}/callback"
 
 
-def authorize_url(*, screen_hint: str | None = None) -> tuple[str, str]:
+def authorize_url(
+    *,
+    screen_hint: str | None = None,
+    redirect_uri: str | None = None,
+    state: str | None = None,
+) -> tuple[str, str]:
     """Build Auth0 /authorize URL and a random OAuth state value."""
-    _require_auth0_config()
-    state = secrets.token_urlsafe(32)
+    _require_auth0_config()so w
+    state = state or secrets.token_urlsafe(32)
     params: dict[str, str] = {
         "response_type": "code",
         "client_id": AUTH0_CLIENT_ID,
-        "redirect_uri": callback_url(),
+        "redirect_uri": redirect_uri or callback_url(),
         "scope": "openid profile email",
         "state": state,
     }
@@ -66,7 +71,11 @@ def logout_url() -> str:
     return f"https://{AUTH0_DOMAIN}/v2/logout?{urlencode(params)}"
 
 
-def exchange_code_for_tokens(code: str) -> dict[str, Any]:
+def exchange_code_for_tokens(
+    code: str,
+    *,
+    redirect_uri: str | None = None,
+) -> dict[str, Any]:
     _require_auth0_config()
     response = requests.post(
         f"https://{AUTH0_DOMAIN}/oauth/token",
@@ -75,7 +84,7 @@ def exchange_code_for_tokens(code: str) -> dict[str, Any]:
             "client_id": AUTH0_CLIENT_ID,
             "client_secret": AUTH0_CLIENT_SECRET,
             "code": code,
-            "redirect_uri": callback_url(),
+            "redirect_uri": redirect_uri or callback_url(),
         },
         timeout=30,
     )
@@ -98,10 +107,11 @@ def _jwks() -> PyJWKClient:
 def verify_id_token(id_token: str) -> dict[str, Any]:
     """Verify Auth0-signed ID token (JWT) and return claims."""
     _require_auth0_config()
+    token = id_token.removeprefix("Bearer ").strip()
     try:
-        signing_key = _jwks().get_signing_key_from_jwt(id_token)
+        signing_key = _jwks().get_signing_key_from_jwt(token)
         return jwt.decode(
-            id_token,
+            token,
             signing_key.key,
             algorithms=["RS256"],
             audience=AUTH0_CLIENT_ID,
@@ -112,6 +122,11 @@ def verify_id_token(id_token: str) -> dict[str, Any]:
             "invalid_token",
             {"message": "Invalid or expired identity token"},
         ) from exc
+
+
+def user_from_auth0_jwt(token: str) -> User:
+    """Resolve a User from an Auth0 ID token."""
+    return get_or_create_user(verify_id_token(token))
 
 
 def get_or_create_user(claims: dict[str, Any]) -> User:
