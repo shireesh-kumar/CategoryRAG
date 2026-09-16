@@ -47,7 +47,7 @@ def authorize_url(
     state: str | None = None,
 ) -> tuple[str, str]:
     """Build Auth0 /authorize URL and a random OAuth state value."""
-    _require_auth0_config()so w
+    _require_auth0_config()
     state = state or secrets.token_urlsafe(32)
     params: dict[str, str] = {
         "response_type": "code",
@@ -55,6 +55,8 @@ def authorize_url(
         "redirect_uri": redirect_uri or callback_url(),
         "scope": "openid profile email",
         "state": state,
+        # Force Auth0 login UI every time (ignore Auth0 SSO silent re-entry).
+        "prompt": "login",
     }
     if screen_hint:
         params["screen_hint"] = screen_hint
@@ -171,14 +173,20 @@ def get_or_create_user(claims: dict[str, Any]) -> User:
 
 
 def set_auth_cookie(response: Response, id_token: str) -> None:
-    """httpOnly JWT cookie. SameSite=Strict for app traffic after login."""
+    """
+    httpOnly JWT cookie.
+
+    SameSite=Lax (not Strict): after Auth0 redirects to /callback, the follow-up
+    redirect to /dashboard must still include this cookie. Strict often drops it
+    on that first hop, bouncing the user back to the login page.
+    """
     response.set_cookie(
         AUTH_COOKIE_NAME,
         id_token,
         max_age=AUTH_COOKIE_MAX_AGE,
         httponly=True,
         secure=IS_PRODUCTION,
-        samesite="Strict",
+        samesite="Lax",
         path="/",
     )
 
@@ -187,7 +195,7 @@ def clear_auth_cookie(response: Response) -> None:
     response.delete_cookie(
         AUTH_COOKIE_NAME,
         path="/",
-        samesite="Strict",
+        samesite="Lax",
         secure=IS_PRODUCTION,
     )
 

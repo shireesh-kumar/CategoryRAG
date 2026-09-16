@@ -1,13 +1,7 @@
 {
   "mcpServers": {
     "categoryrag": {
-      "command": "uv",
-      "args": [
-        "--directory",
-        "D:\\Projects\\CategoryRAG",
-        "run",
-        "categoryrag-mcp"
-      ]
+      "url": "http://127.0.0.1:8000/mcp"
     }
   }
 }
