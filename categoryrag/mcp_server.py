@@ -20,6 +20,8 @@ from categoryrag.database.db import init_db
 from categoryrag.exceptions import AppError, UnauthorizedError
 from categoryrag.services.category_service import category_service
 from categoryrag.services.document_service import document_service
+from mcp.server.auth.middleware.auth_context import get_access_token
+
 from categoryrag.services.mcp_auth import mcp_error, require_mcp_user
 from categoryrag.services.mcp_oauth import Auth0McpOAuthProvider
 
@@ -119,6 +121,34 @@ def search_category(category_id: str, query: str, top_k: int = 5) -> list[dict] 
             query=query,
             top_k=top_k,
         )
+    except (UnauthorizedError, AppError) as exc:
+        return mcp_error(exc)
+
+
+@mcp.tool()
+def logout() -> dict:
+    """Sign out of CategoryRAG MCP. Revokes server-side session tokens for this client.
+
+    Does not clear Cursor's local token vault; the next tool call should get 401 and
+    prompt re-authentication (mcp_auth).
+    """
+    try:
+        require_mcp_user()
+        access = get_access_token()
+        if access is None:
+            raise UnauthorizedError(
+                "mcp_auth_required",
+                {"message": "No active MCP session to revoke."},
+            )
+        revoked = _oauth.revoke_session(access.token)
+        return {
+            "ok": revoked,
+            "message": (
+                "Logged out. Call mcp_auth / reconnect to sign in again."
+                if revoked
+                else "Session already revoked."
+            ),
+        }
     except (UnauthorizedError, AppError) as exc:
         return mcp_error(exc)
 

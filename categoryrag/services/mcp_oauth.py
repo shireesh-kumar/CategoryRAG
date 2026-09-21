@@ -28,6 +28,7 @@ from mcp.server.auth.provider import (
     construct_redirect_uri,
 )
 from mcp.shared.auth import OAuthClientInformationFull, OAuthToken
+from sqlalchemy import select
 
 from categoryrag.config import MCP_AUTH0_CALLBACK_URL
 from categoryrag.database.db import get_session
@@ -268,6 +269,35 @@ class Auth0McpOAuthProvider:
             if row is not None:
                 session.delete(row)
                 session.commit()
+
+    def revoke_session(self, access_token: str) -> bool:
+        """Delete the current access token and matching refresh tokens for that client/user.
+
+        Cursor may still hold a cached Bearer; the next MCP call should get HTTP 401
+        (or fail refresh) so the client can re-run mcp_auth.
+        """
+        with get_session() as session:
+            row = session.get(McpAccessToken, access_token)
+            if row is None:
+                return False
+            user_id = row.user_id
+            client_id = row.client_id
+            for access in session.scalars(
+                select(McpAccessToken).where(
+                    McpAccessToken.user_id == user_id,
+                    McpAccessToken.client_id == client_id,
+                )
+            ).all():
+                session.delete(access)
+            for refresh in session.scalars(
+                select(McpRefreshToken).where(
+                    McpRefreshToken.user_id == user_id,
+                    McpRefreshToken.client_id == client_id,
+                )
+            ).all():
+                session.delete(refresh)
+            session.commit()
+            return True
 
     def _mint_tokens(
         self,

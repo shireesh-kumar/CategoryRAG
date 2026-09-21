@@ -61,7 +61,7 @@ HTTP MCP with Auth0 login (same pattern as Tavily remote MCP). Cursor opens the 
 3. In Cursor Settings → MCP, use URL `http://127.0.0.1:8000/mcp` (see `.cursor/mcp.json`)
 4. Click **Needs authentication** / run `mcp_auth` → Auth0 login → done
 
-Tools: `list_categories`, `create_category`, `list_documents`, `search_category` (scoped to the signed-in user).
+Tools: `list_categories`, `create_category`, `list_documents`, `search_category`, `logout` (scoped to the signed-in user).
 
 ```bash
 uv run categoryrag-mcp
