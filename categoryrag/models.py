@@ -5,7 +5,7 @@ from enum import StrEnum
 from typing import Any
 from uuid import uuid4
 
-from sqlalchemy import ForeignKey, Integer, String, Text
+from sqlalchemy import ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from categoryrag.database.db import Base
@@ -37,14 +37,6 @@ class User(Base):
     updated_at: Mapped[str] = mapped_column(String(40), default=utc_now)
 
     categories: Mapped[list["Category"]] = relationship(back_populates="owner")
-    mcp_access_tokens: Mapped[list["McpAccessToken"]] = relationship(
-        back_populates="user",
-        cascade="all, delete-orphan",
-    )
-    mcp_refresh_tokens: Mapped[list["McpRefreshToken"]] = relationship(
-        back_populates="user",
-        cascade="all, delete-orphan",
-    )
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -55,53 +47,6 @@ class User(Base):
             "created_at": self.created_at,
             "updated_at": self.updated_at,
         }
-
-
-class McpAccessToken(Base):
-    """Opaque MCP Bearer access token (Cursor session). Survives process restart."""
-
-    __tablename__ = "mcp_access_tokens"
-
-    token: Mapped[str] = mapped_column(String(128), primary_key=True)
-    user_id: Mapped[str] = mapped_column(
-        String(32),
-        ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    client_id: Mapped[str] = mapped_column(String(128), nullable=False)
-    scopes: Mapped[str] = mapped_column(String(500), default="openid profile email")
-    subject: Mapped[str] = mapped_column(String(128), nullable=False)
-    email: Mapped[str | None] = mapped_column(String(320), nullable=True)
-    name: Mapped[str | None] = mapped_column(String(200), nullable=True)
-    resource: Mapped[str | None] = mapped_column(String(512), nullable=True)
-    expires_at: Mapped[int] = mapped_column(Integer, nullable=False)
-    created_at: Mapped[str] = mapped_column(String(40), default=utc_now)
-
-    user: Mapped[User] = relationship(back_populates="mcp_access_tokens")
-
-
-class McpRefreshToken(Base):
-    """Opaque MCP refresh token. Used to mint a new access token without Auth0."""
-
-    __tablename__ = "mcp_refresh_tokens"
-
-    token: Mapped[str] = mapped_column(String(128), primary_key=True)
-    user_id: Mapped[str] = mapped_column(
-        String(32),
-        ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    client_id: Mapped[str] = mapped_column(String(128), nullable=False)
-    scopes: Mapped[str] = mapped_column(String(500), default="openid profile email")
-    subject: Mapped[str] = mapped_column(String(128), nullable=False)
-    email: Mapped[str | None] = mapped_column(String(320), nullable=True)
-    name: Mapped[str | None] = mapped_column(String(200), nullable=True)
-    expires_at: Mapped[int] = mapped_column(Integer, nullable=False)
-    created_at: Mapped[str] = mapped_column(String(40), default=utc_now)
-
-    user: Mapped[User] = relationship(back_populates="mcp_refresh_tokens")
 
 
 class Category(Base):

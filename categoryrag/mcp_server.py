@@ -1,15 +1,12 @@
 from __future__ import annotations
 
 from pydantic import AnyHttpUrl
-from starlette.requests import Request
-from starlette.responses import Response
 
-from mcp.server.auth.settings import AuthSettings, ClientRegistrationOptions
+from mcp.server.auth.settings import AuthSettings
 from mcp.server.mcpserver import MCPServer
 
 from categoryrag.config import (
-    MCP_AUTH0_CALLBACK_PATH,
-    MCP_BASE_URL,
+    AUTH0_ISSUER,
     MCP_HOST,
     MCP_PATH,
     MCP_PORT,
@@ -20,36 +17,22 @@ from categoryrag.database.db import init_db
 from categoryrag.exceptions import AppError, UnauthorizedError
 from categoryrag.services.category_service import category_service
 from categoryrag.services.document_service import document_service
-from mcp.server.auth.middleware.auth_context import get_access_token
-
-from categoryrag.services.mcp_auth import mcp_error, require_mcp_user
-from categoryrag.services.mcp_oauth import Auth0McpOAuthProvider
+from categoryrag.services.mcp_auth import Auth0TokenVerifier, mcp_error, require_mcp_user
 
 ensure_data_dirs()
 init_db()
 
-_oauth = Auth0McpOAuthProvider()
+if not AUTH0_ISSUER:
+    raise RuntimeError("AUTH0_DOMAIN must be set for MCP authentication")
 
 mcp = MCPServer(
     "categoryrag",
-    auth_server_provider=_oauth,
+    token_verifier=Auth0TokenVerifier(),
     auth=AuthSettings(
-        issuer_url=AnyHttpUrl(MCP_BASE_URL),
+        issuer_url=AnyHttpUrl(AUTH0_ISSUER),
         resource_server_url=AnyHttpUrl(MCP_RESOURCE_URL),
-        client_registration_options=ClientRegistrationOptions(
-            enabled=True,
-            valid_scopes=["openid", "profile", "email"],
-            default_scopes=["openid", "profile", "email"],
-        ),
-        required_scopes=None,
     ),
 )
-
-
-@mcp.custom_route(MCP_AUTH0_CALLBACK_PATH, methods=["GET"])
-async def auth0_callback(request: Request) -> Response:
-    """Auth0 returns here; we finish MCP OAuth and redirect back to Cursor."""
-    return await _oauth.handle_auth0_callback(request)
 
 
 @mcp.tool()
@@ -121,34 +104,6 @@ def search_category(category_id: str, query: str, top_k: int = 5) -> list[dict] 
             query=query,
             top_k=top_k,
         )
-    except (UnauthorizedError, AppError) as exc:
-        return mcp_error(exc)
-
-
-@mcp.tool()
-def logout() -> dict:
-    """Sign out of CategoryRAG MCP. Revokes server-side session tokens for this client.
-
-    Does not clear Cursor's local token vault; the next tool call should get 401 and
-    prompt re-authentication (mcp_auth).
-    """
-    try:
-        require_mcp_user()
-        access = get_access_token()
-        if access is None:
-            raise UnauthorizedError(
-                "mcp_auth_required",
-                {"message": "No active MCP session to revoke."},
-            )
-        revoked = _oauth.revoke_session(access.token)
-        return {
-            "ok": revoked,
-            "message": (
-                "Logged out. Call mcp_auth / reconnect to sign in again."
-                if revoked
-                else "Session already revoked."
-            ),
-        }
     except (UnauthorizedError, AppError) as exc:
         return mcp_error(exc)
 

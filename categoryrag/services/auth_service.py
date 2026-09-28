@@ -106,6 +106,26 @@ def _jwks() -> PyJWKClient:
     return _jwks_client
 
 
+def verify_access_token(token: str, *, audience: str) -> dict[str, Any]:
+    """Verify an Auth0 access token (JWT) minted for `audience`."""
+    _require_auth0_config()
+    raw = token.removeprefix("Bearer ").strip()
+    try:
+        signing_key = _jwks().get_signing_key_from_jwt(raw)
+        return jwt.decode(
+            raw,
+            signing_key.key,
+            algorithms=["RS256"],
+            audience=audience,
+            issuer=f"https://{AUTH0_DOMAIN}/",
+        )
+    except jwt.PyJWTError as exc:
+        raise UnauthorizedError(
+            "invalid_token",
+            {"message": "Invalid or expired access token"},
+        ) from exc
+
+
 def verify_id_token(id_token: str) -> dict[str, Any]:
     """Verify Auth0-signed ID token (JWT) and return claims."""
     _require_auth0_config()

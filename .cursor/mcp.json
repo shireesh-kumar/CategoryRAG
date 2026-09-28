@@ -1,7 +1,11 @@
 {
   "mcpServers": {
     "categoryrag": {
-      "url": "http://127.0.0.1:8000/mcp"
+      "url": "http://127.0.0.1:8000/mcp",
+      "auth": {
+        "CLIENT_ID": "PASTE_AUTH0_NATIVE_APP_CLIENT_ID",
+        "scopes": ["openid", "profile", "email"]
+      }
     }
   }
 }

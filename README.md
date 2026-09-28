@@ -14,7 +14,7 @@ Set `GEMINI_API_KEY` and Auth0 vars in `.env` (see `.env.example`).
 **Local:** `docker compose up -d` then `uv run categoryrag`.  
 Open **http://localhost:5000** (must match `APP_BASE_URL` and Auth0 callback URLs — not `127.0.0.1`).
 
-**Auth:** Auth0 Universal Login → `/callback` → httpOnly `cr_id_token` cookie (`SameSite=Strict`). Categories are scoped per user. MCP uses the same Auth0 login via Cursor OAuth (browser → Cursor stores token).
+**Auth:** Auth0 Universal Login → `/callback` → httpOnly `cr_id_token` cookie (`SameSite=Lax`). Categories are scoped per user. MCP checks an Auth0 access token; it does not use that cookie.
 
 **Cloud:** Deploy with `ENV=production` and set service credentials as environment variables on the platform.
 
@@ -51,17 +51,16 @@ Open: http://localhost:5000/login-page
 6. Search indexed content in that category
 7. Sign out when done
 
-## MCP server (Cursor)
+## MCP server
 
-HTTP MCP with Auth0 login (same pattern as Tavily remote MCP). Cursor opens the browser, you sign in, Cursor stores the token — no JWT paste.
+HTTP MCP. Auth0 issues the access token. This server only verifies it.
 
-1. Reuse your existing Auth0 Regular Web App. Add this to **Allowed Callback URLs**:
-   `http://127.0.0.1:8000/auth/callback`
-2. Start MCP: `uv run categoryrag-mcp` (listens on `http://127.0.0.1:8000/mcp`)
-3. In Cursor Settings → MCP, use URL `http://127.0.0.1:8000/mcp` (see `.cursor/mcp.json`)
-4. Click **Needs authentication** / run `mcp_auth` → Auth0 login → done
+1. In Auth0, create an API whose identifier is `http://127.0.0.1:8000/mcp` and a Native app. Put that app's Client ID in `.cursor/mcp.json` as `auth.CLIENT_ID`.
+2. On the Native app, allow callbacks `http://localhost:8787/callback` and `https://www.cursor.com/agents/mcp/oauth/callback`.
+3. Start MCP: `uv run categoryrag-mcp` (listens on `http://127.0.0.1:8000/mcp`)
+4. In Cursor, connect that URL and sign in when asked.
 
-Tools: `list_categories`, `create_category`, `list_documents`, `search_category`, `logout` (scoped to the signed-in user).
+Tools: `list_categories`, `create_category`, `list_documents`, `search_category` (scoped to the signed-in user).
 
 ```bash
 uv run categoryrag-mcp

@@ -86,7 +86,7 @@ AUTH_COOKIE_NAME = "cr_id_token"
 AUTH_STATE_COOKIE = "cr_oauth_state"
 AUTH_COOKIE_MAX_AGE = 60 * 60 * 24 * 7  # 7 days
 
-# Local HTTP MCP (Cursor OAuth). Reuses AUTH0_* — add callback to existing Auth0 app.
+# HTTP MCP. Auth0 is the authorization server; this process only checks the JWT.
 MCP_HOST = os.getenv("MCP_HOST", "127.0.0.1")
 MCP_PORT = int(os.getenv("MCP_PORT", "8000"))
 MCP_BASE_URL = (
@@ -95,8 +95,9 @@ MCP_BASE_URL = (
 )
 MCP_PATH = "/mcp"
 MCP_RESOURCE_URL = f"{MCP_BASE_URL}{MCP_PATH}"
-MCP_AUTH0_CALLBACK_PATH = "/auth/callback"
-MCP_AUTH0_CALLBACK_URL = f"{MCP_BASE_URL}{MCP_AUTH0_CALLBACK_PATH}"
+# Must match the Auth0 API identifier. Defaults to the MCP URL.
+AUTH0_MCP_AUDIENCE = os.getenv("AUTH0_MCP_AUDIENCE", "").rstrip("/") or MCP_RESOURCE_URL
+AUTH0_ISSUER = f"https://{AUTH0_DOMAIN}/" if AUTH0_DOMAIN else ""
 
 
 def ensure_data_dirs() -> None:
